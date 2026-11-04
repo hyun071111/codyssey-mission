@@ -55,12 +55,6 @@
             gap: 10px;
         }
 
-        .user-panel {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
         .btn {
             background-color: #3b3b54;
             color: #fff;
@@ -352,9 +346,6 @@
 
     <header>
         <h1>🎬 영화 티어리스트</h1>
-        <div class="user-panel" id="userPanel">
-            <!-- JS로 비회원 / 회원 상태 렌더링 -->
-        </div>
     </header>
 
     <div class="container">
@@ -429,46 +420,6 @@
         </div>
     </div>
 
-    <!-- 회원가입 / 로그인 모달 -->
-    <div class="modal-backdrop" id="authModal">
-        <div class="modal">
-            <h2 class="modal-title" id="authModalTitle">회원가입 / 로그인</h2>
-            <p style="font-size: 0.85rem; color: #aaa; margin-bottom: 15px;">
-                계정을 생성하거나 로그인하면 현재 비회원으로 작성한 티어리스트가 이 계정으로 동기화됩니다.
-            </p>
-            <div class="form-group">
-                <label for="usernameInput">아이디 (이메일)</label>
-                <input type="text" id="usernameInput" placeholder="user@example.com">
-            </div>
-            <div class="modal-actions">
-                <button class="btn" id="closeAuthModalBtn">취소</button>
-                <button class="btn btn-primary" id="submitAuthBtn">동기화 및 시작</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- 관리자 모달 -->
-    <div class="modal-backdrop" id="adminModal">
-        <div class="modal">
-            <h2 class="modal-title">🛠 관리자: 기본 영화 추가</h2>
-            <p style="font-size: 0.85rem; color: #aaa; margin-bottom: 15px;">
-                모든 일반 사용자에게 제공될 시스템 기본 영화 목록에 추가합니다.
-            </p>
-            <div class="form-group">
-                <label for="adminMovieTitle">영화 제목</label>
-                <input type="text" id="adminMovieTitle" placeholder="예: 매트릭스">
-            </div>
-            <div class="form-group">
-                <label for="adminMoviePoster">포스터 이미지 URL</label>
-                <input type="url" id="adminMoviePoster" placeholder="https://...">
-            </div>
-            <div class="modal-actions">
-                <button class="btn" id="closeAdminModalBtn">닫기</button>
-                <button class="btn btn-primary" id="submitAdminMovieBtn">기본 영화로 등록</button>
-            </div>
-        </div>
-    </div>
-
     <script>
         // -------------------------------------------------------------
         // 1. 초기 데이터 정의 (기획서 8종 기본 영화)
@@ -488,7 +439,6 @@
         // 2. 애플리케이션 상태 관리
         // -------------------------------------------------------------
         let state = {
-            currentUser: null, // null (비회원) 또는 { username: string }
             movies: [],        // 사용 가능한 전체 영화 리스트
             assignments: {}    // { movieId: tierName } ('S', 'A', 'B', 'C', 'D', 'F', 또는 'unassigned')
         };
@@ -498,18 +448,12 @@
         // -------------------------------------------------------------
         function initApp() {
             loadUserData();
-            renderUserPanel();
             renderTierBoard();
             setupDragAndDrop();
         }
 
         function loadUserData() {
-            const savedUser = localStorage.getItem('movie_tier_current_user');
-            if (savedUser) {
-                state.currentUser = JSON.parse(savedUser);
-            }
-
-            // 영화 목록 (기본 + 사용자/관리자 추가)
+            // 영화 목록 (기본 + 사용자 추가)
             const savedMovies = localStorage.getItem('movie_tier_movies');
             if (savedMovies) {
                 state.movies = JSON.parse(savedMovies);
@@ -519,9 +463,7 @@
             }
 
             // 티어 배치 정보 읽기
-            const storageKey = state.currentUser
-                ? `movie_tier_assign_${state.currentUser.username}`
-                : 'movie_tier_assign_guest';
+            const storageKey = 'movie_tier_assign_guest';
 
             const savedAssignments = localStorage.getItem(storageKey);
             if (savedAssignments) {
@@ -535,9 +477,7 @@
         }
 
         function saveData(showFeedback = true) {
-            const storageKey = state.currentUser
-                ? `movie_tier_assign_${state.currentUser.username}`
-                : 'movie_tier_assign_guest';
+            const storageKey = 'movie_tier_assign_guest';
 
             localStorage.setItem(storageKey, JSON.stringify(state.assignments));
             localStorage.setItem('movie_tier_movies', JSON.stringify(state.movies));
@@ -552,23 +492,6 @@
         // -------------------------------------------------------------
         // 4. UI 렌더링 함수
         // -------------------------------------------------------------
-        function renderUserPanel() {
-            const panel = document.getElementById('userPanel');
-            if (state.currentUser) {
-                panel.innerHTML = `
-                    <span style="font-size:0.9rem; color:#aaa;">👤 ${state.currentUser.username} 님</span>
-                    <button class="btn btn-sm" onclick="handleLogout()">로그아웃</button>
-                    <button class="btn btn-sm" onclick="openModal('adminModal')">🛠 관리자</button>
-                `;
-            } else {
-                panel.innerHTML = `
-                    <span style="font-size:0.85rem; color:#888;">로그인 없이 이용 중</span>
-                    <button class="btn btn-sm btn-primary" onclick="openModal('authModal')">회원가입 / 로그인</button>
-                    <button class="btn btn-sm" onclick="openModal('adminModal')">🛠 관리자</button>
-                `;
-            }
-        }
-
         function renderTierBoard() {
             // 모든 구역 비우기
             const tiers = ['S', 'A', 'B', 'C', 'D', 'F', 'unassigned'];
@@ -718,79 +641,6 @@
             titleInput.value = '';
             posterInput.value = '';
             closeModal('addMovieModal');
-        });
-
-        // 회원가입 및 동기화
-        document.getElementById('closeAuthModalBtn').addEventListener('click', () => closeModal('authModal'));
-        document.getElementById('submitAuthBtn').addEventListener('click', () => {
-            const usernameInput = document.getElementById('usernameInput');
-            const username = usernameInput.value.trim();
-
-            if (!username) {
-                alert('아이디(이메일)를 입력해 주세요.');
-                return;
-            }
-
-            // 비회원 상태의 현재 배치 기록 캡처
-            const guestAssignments = { ...state.assignments };
-
-            // 회원 로그인 처리
-            state.currentUser = { username: username };
-            localStorage.setItem('movie_tier_current_user', JSON.stringify(state.currentUser));
-
-            // 동기화: 기존 계정 기록이 없으면 현재 비회원 기록을 계정 기록으로 연결
-            const userStorageKey = `movie_tier_assign_${username}`;
-            const existingUserAssignments = localStorage.getItem(userStorageKey);
-
-            if (!existingUserAssignments) {
-                state.assignments = guestAssignments;
-                localStorage.setItem(userStorageKey, JSON.stringify(state.assignments));
-            } else {
-                state.assignments = JSON.parse(existingUserAssignments);
-            }
-
-            renderUserPanel();
-            renderTierBoard();
-            closeModal('authModal');
-            alert(`${username} 님으로 동기화되었습니다.`);
-        });
-
-        function handleLogout() {
-            localStorage.removeItem('movie_tier_current_user');
-            state.currentUser = null;
-            loadUserData();
-            renderUserPanel();
-            renderTierBoard();
-        }
-
-        // 관리자 영화 등록
-        document.getElementById('closeAdminModalBtn').addEventListener('click', () => closeModal('adminModal'));
-        document.getElementById('submitAdminMovieBtn').addEventListener('click', () => {
-            const titleInput = document.getElementById('adminMovieTitle');
-            const posterInput = document.getElementById('adminMoviePoster');
-
-            const title = titleInput.value.trim();
-            if (!title) {
-                alert('영화 제목을 입력하세요.');
-                return;
-            }
-
-            const newMovie = {
-                id: 'admin_' + Date.now(),
-                title: title,
-                poster: posterInput.value.trim() || 'https://via.placeholder.com/200x300?text=' + encodeURIComponent(title)
-            };
-
-            state.movies.push(newMovie);
-            state.assignments[newMovie.id] = 'unassigned';
-
-            saveData(false);
-            renderTierBoard();
-
-            titleInput.value = '';
-            posterInput.value = '';
-            closeModal('adminModal');
-            alert('기본 영화 목록에 추가되었습니다.');
         });
 
         // -------------------------------------------------------------
